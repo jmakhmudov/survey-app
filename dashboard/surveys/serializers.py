@@ -32,7 +32,7 @@ class ResponseSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Response
-        fields = ['survey', 'client', 'answers']
+        fields = ['survey', 'client', 'branch', 'answers']
 
     def create(self, validated_data):
         answers_data = validated_data.pop('answers')

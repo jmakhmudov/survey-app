@@ -1,84 +1,103 @@
-import axios from "axios";
-import { Markup, Telegraf, session, Scenes } from "telegraf";
-import { Stage } from "telegraf/typings/scenes";
+const TelegrafI18n = require('telegraf-i18n')
+const Telegraf = require('telegraf')
+const {
+  Markup,
+  Extra
+} = require('telegraf')
+const path = require('path');
+const getUser = require('./helpers/getUser');
+const { Stage, session } = require('telegraf');
+const regScene = require('./scenes/reg');
+const sendLanguage = require('./helpers/sendLang');
+const start = require('./helpers/start');
+const surveyScene = require('./scenes/survey');
 
-const getUser = async (id) => {
-	try {
-		const response = await axios.get(`http://127.0.0.1:8000/api/user-create/${id}`);
-		return response.data;
-	} catch (error) {
-		if (error.response && error.response.status === 404) {
-			return undefined;
-		} else {
-			console.error("An error occurred while fetching user data", error.message);
-			throw error;
-		}
-	}
-};
-
-const bot = new Telegraf('6428031744:AAF2POTizOUsK_LOSfVFd9ptNcumNyp9oFE');
-
-bot.command('start', (ctx) => {
-	ctx.scene.enter('CONTACT_DATA_WIZARD_SCENE_ID')
+const i18n = new TelegrafI18n({
+  defaultLanguage: 'ru',
+  useSession: true,
+  directory: path.resolve(__dirname, 'locales')
 })
 
 
-const contactDataWizard = new Scenes.WizardScene(
-	'CONTACT_DATA_WIZARD_SCENE_ID', // first argument is Scene_ID, same as for BaseScene
-	(ctx) => {
-		ctx.reply('What is your name?');
-		ctx.wizard.state.contactData = {};
-		return ctx.wizard.next();
-	},
-	(ctx) => {
-		// validation example
-		if (ctx.message.text.length < 2) {
-			ctx.reply('Please enter name for real');
-			return;
-		}
-		ctx.wizard.state.contactData.fio = ctx.message.text;
-		ctx.reply('Enter your e-mail');
-		return ctx.wizard.next();
-	},
-	async (ctx) => {
-		ctx.wizard.state.contactData.email = ctx.message.text;
-		ctx.reply("Thank you for your replies, we'll contact your soon");
-		await mySendContactDataMomentBeforeErase(ctx.wizard.state.contactData);
-		return ctx.scene.leave();
-	},
-);
+const bot = new Telegraf('6428031744:AAF2POTizOUsK_LOSfVFd9ptNcumNyp9oFE')
 
-const stage = new Stage()
-bot.use(stage.middleware())
+const stage = new Stage([regScene, surveyScene]);
+bot.use(session())
+bot.use(i18n.middleware())
+bot.use(stage.middleware());
 
-const scenarioTypeScene = new Scenes.BaseScene('SCENARIO_TYPE_SCENE_ID');
+surveyScene.hears([TelegrafI18n.match('buttons.mainmenu')], async (ctx) => {
+  ctx.scene.leave()
+  start(ctx)
+})
 
-scenarioTypeScene.enter((ctx) => {
-	ctx.session.myData = {};
-	ctx.reply('What is your drug?', Markup.inlineKeyboard([
-		Markup.callbackButton('Movie', 'MOVIE_ACTION'),
-		Markup.callbackButton('Theater', 'THEATER_ACTION'),
-	]).extra());
+
+bot.command('start', async (ctx) => {
+  start(ctx)
 });
 
-scenarioTypeScene.action('THEATER_ACTION', (ctx) => {
-	ctx.reply('You choose theater');
-	ctx.session.myData.preferenceType = 'Theater';
-	return ctx.scene.enter('SOME_OTHER_SCENE_ID'); // switch to some other scene
+bot.command('setlanguage', (ctx, next) => {
+  return sendLanguage(ctx)
 });
 
-scenarioTypeScene.action('MOVIE_ACTION', (ctx) => {
-	ctx.reply('You choose movie, your loss');
-	ctx.session.myData.preferenceType = 'Movie';
-	return ctx.scene.leave(); // exit global namespace
-});
+bot.on('callback_query', async (ctx, next) => {
+  let [type] = ctx.callbackQuery.data.split(":");
 
-scenarioTypeScene.leave((ctx) => {
-	ctx.reply('Thank you for your time!');
-});
+  if (type == "setlanguage") {
+    let [type, language] = ctx.callbackQuery.data.split(":");
+    switch (language) {
+      case "ru":
+        ctx.session.language = "ru"
+        ctx.session.__language_code = "ru"
+        break;
+      case "uz":
+        ctx.session.language = "uz"
+        ctx.session.__language_code = "uz"
+        break;
+      case "reset":
+        ctx.reply(ctx.i18n.t('messages.changelang'), Markup.removeKeyboard(true).extra()).then(e => ctx.deleteMessage(e.message_id))
+        ctx.session.language = "reset"
+        break;
+    }
 
-// What to do if user entered a raw message or picked some other option?
-scenarioTypeScene.use((ctx) => ctx.replyWithMarkdown('Please choose either Movie or Theater'));
+    ctx.i18n.locale(ctx.session.language)
+    ctx.answerCbQuery();
+    ctx.deleteMessage()
+    ctx.reply(ctx.i18n.t('messages.languageChanged'), Markup
+      .keyboard([
+        [Markup.callbackButton(ctx.i18n.t('buttons.join'), 'join')],
+        [Markup.callbackButton(ctx.i18n.t('buttons.changelang'), 'setlanguage:reset')],
+      ])
+      .oneTime(false)
+      .resize()
+      .extra()
+    )
 
-bot.use(session());
-bot.launch();
+    const check = await getUser(ctx.from.id)
+
+    if (!check) ctx.scene.enter('register')
+  } else {
+    return next()
+  }
+})
+
+bot.on('text', (ctx) => {
+  const messageText = ctx.message.text.toLowerCase();
+
+  if (messageText === ctx.i18n.t('buttons.join').toLowerCase()) {
+    ctx.scene.enter('survey')
+  }
+  if (messageText === ctx.i18n.t('buttons.changelang').toLowerCase()) {
+    sendLanguage(ctx)
+  }
+})
+
+bot.command('debug', (ctx) => {
+  console.log('Debug command received:', ctx.message)
+  ctx.reply('Debug command received!')
+})
+
+bot.catch((err) => {
+  console.log('Ooops', err)
+})
+bot.launch()

@@ -7,7 +7,7 @@ from .survey import Survey
 
 
 class Response(models.Model):
-    branch = models.ForeignKey(Branch, on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Филиал')
+    branch = models.ForeignKey(Branch, on_delete=models.DO_NOTHING, verbose_name='Филиал')
     created = models.DateTimeField(("Дата создания"), auto_now_add=True)
     updated = models.DateTimeField(("Дата обновления"), auto_now=True)
     survey = models.ForeignKey(Survey, on_delete=models.CASCADE, verbose_name=("Опрос"), related_name="responses")
