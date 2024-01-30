@@ -11,6 +11,7 @@ const regScene = require('./scenes/reg');
 const sendLanguage = require('./helpers/sendLang');
 const start = require('./helpers/start');
 const surveyScene = require('./scenes/survey');
+require('dotenv').config();
 
 const i18n = new TelegrafI18n({
   defaultLanguage: 'ru',
@@ -18,8 +19,7 @@ const i18n = new TelegrafI18n({
   directory: path.resolve(__dirname, 'locales')
 })
 
-
-const bot = new Telegraf('6428031744:AAF2POTizOUsK_LOSfVFd9ptNcumNyp9oFE')
+const bot = new Telegraf(process.env.BOT_TOKEN)
 
 const stage = new Stage([regScene, surveyScene]);
 bot.use(session())

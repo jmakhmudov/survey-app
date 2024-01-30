@@ -2,6 +2,7 @@ const WizardScene = require('telegraf/scenes/wizard');
 const isValidPhoneNumber = require('../helpers/checkPhoneNumber');
 const axios = require('axios');
 const { Markup } = require('telegraf');
+const start = require('../helpers/start');
 
 const regScene = new WizardScene(
   'register',
@@ -24,7 +25,9 @@ const regScene = new WizardScene(
       return;
     }
     ctx.wizard.state.contactData.phone_number = ctx.message.contact ? ctx.message.contact.phone_number : ctx.message.text;
-    ctx.replyWithHTML(ctx.i18n.t('messages.fullname'));
+    ctx.replyWithHTML(ctx.i18n.t('messages.fullname'), {
+      reply_markup: { remove_keyboard: true },
+    });
     return ctx.wizard.next();
   },
   (ctx) => {
@@ -45,7 +48,9 @@ const regScene = new WizardScene(
       return;
     }
     ctx.wizard.state.contactData.gender = ctx.message.text;
-    ctx.replyWithHTML(ctx.i18n.t('messages.age'));
+    ctx.replyWithHTML(ctx.i18n.t('messages.age'), {
+      reply_markup: { remove_keyboard: true },
+    });
     return ctx.wizard.next();
   },
   async (ctx) => {
@@ -55,7 +60,7 @@ const regScene = new WizardScene(
     }
     ctx.wizard.state.contactData.age = ctx.message.text;
     try {
-      const response = await axios.post('http://127.0.0.1:8000/api/user-create/', ctx.wizard.state.contactData);
+      const response = await axios.post(`${process.env.BACK_URL}/api/user-create/`, ctx.wizard.state.contactData);
 
       if (response.status === 201) {
         ctx.replyWithHTML(ctx.i18n.t('messages.regcompleted'));
@@ -67,6 +72,7 @@ const regScene = new WizardScene(
       ctx.reply(ctx.i18n.t('messages.error'));
     }
     console.log(ctx.wizard.state.contactData)
+    start(ctx)
     return ctx.scene.leave();
   },
 );

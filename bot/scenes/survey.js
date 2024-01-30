@@ -7,7 +7,7 @@ const surveyScene = new WizardScene(
   'survey',
   async (ctx) => {
     ctx.wizard.state.surveyData = {};
-    const surveys = await axios.get('http://127.0.0.1:8000/api/surveys').then(res => res.data);
+    const surveys = await axios.get(`${process.env.BACK_URL}/api/surveys`).then(res => res.data);
 
     if (surveys.length > 0) {
       ctx.wizard.state.surveys = surveys;
@@ -116,7 +116,7 @@ const surveyScene = new WizardScene(
 const sendResults = async (ctx, survey) => {
   console.log(ctx.wizard.state.response)
   try {
-    const response = await axios.post('http://127.0.0.1:8000/api/survey-response/', ctx.wizard.state.response);
+    const response = await axios.post(`${process.env.BACK_URL}/api/survey-response/`, ctx.wizard.state.response);
     if (response.status === 201) {
       ctx.replyWithHTML(ctx.i18n.t('messages.surveycompleted'));
       survey.offers[0].img ? ctx.replyWithPhoto({ url: survey.offers[0].img }, Extra.load({

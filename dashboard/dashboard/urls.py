@@ -32,5 +32,4 @@ urlpatterns = [
     path('api/user-create/', api.ClientCreateView.as_view()),
     path('api/user-create/<int:id>/', api.ClientDetailView.as_view()),
     path('api/branches/', api.BranchView.as_view()),
-    path('admin_tools_stats/', include('admin_tools_stats.urls'))
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
